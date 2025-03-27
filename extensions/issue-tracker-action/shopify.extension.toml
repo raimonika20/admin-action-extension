@@ -13,6 +13,9 @@ module = "./src/ActionExtension.jsx"
 # The target used here must match the target used in the module file (./src/ActionExtension.jsx)
 target = "admin.product-details.action.render"
 
+[extensions.targeting.should_render]
+module = "./src/condition/shouldRender.js"
+
 
 # Valid extension targets:
 

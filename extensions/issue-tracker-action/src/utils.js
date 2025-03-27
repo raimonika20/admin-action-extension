@@ -64,3 +64,33 @@ async function makeGraphQLQuery(query, variables) {
 
   return await res.json();
 }
+
+export async function getProductVariants(data) {
+  const getProductQuery = {
+    query: `query Product($id: ID!) {
+      product(id: $id) {
+        title
+        variants(first: 2) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    }`,
+    variables: { id: data.selected[0].id },
+  };
+
+  const res = await fetch("shopify:admin/api/graphql.json", {
+    method: "POST",
+    body: JSON.stringify(getProductQuery),
+  });
+
+  if (!res.ok) {
+    console.error('Network error');
+  }
+
+  const productData = await res.json();
+  return productData.data.product.variants.edges;
+};
