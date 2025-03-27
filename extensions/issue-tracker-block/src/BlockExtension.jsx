@@ -23,22 +23,27 @@ export default reactExtension(TARGET, () => <App />);
 const PAGE_SIZE = 3;
 
 function App() {
-  const { navigation, data, i18n } = useApi(TARGET);
-  const [loading, setLoading] = useState(true);
-  const [initialValues, setInitialValues] = useState([]);
+  const { data, i18n } = useApi(TARGET);
   const [issues, setIssues] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const productId = data.selected[0].id;
   const issuesCount = issues.length;
   const totalPages = issuesCount / PAGE_SIZE;
 
+  const [loading, setLoading] = useState(true);
+  const [initialValues, setInitialValues] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [shouldRender, setShouldRender] = useState(false);
+
   useEffect(() => {
     (async function getProductInfo() {
-      // Load the product's metafield of type issues
       const productData = await getIssues(productId);
 
       setLoading(false);
+
+      if (productData?.data?.product?.variants?.edges.length > 1) {
+        setShouldRender(true);
+      }
       if (productData?.data?.product?.metafield?.value) {
         const parsedIssues = JSON.parse(
           productData.data.product.metafield.value
@@ -49,7 +54,7 @@ function App() {
         setIssues(parsedIssues);
       }
     })();
-  }, []);
+  }, [productId]);
 
   const paginatedIssues = useMemo(() => {
     if (issuesCount <= PAGE_SIZE) {
@@ -62,7 +67,7 @@ function App() {
       (currentPage - 1) * PAGE_SIZE,
       currentPage * PAGE_SIZE
     );
-  }, [issues, currentPage]);
+  }, [issuesCount, issues, currentPage]);
 
   const handleChange = async (id, value) => {
     // Update the local state of the extension to reflect changes
@@ -98,17 +103,15 @@ function App() {
     await updateIssues(productId, issues);
   };
 
-  const onReset = () => { };
+  const onReset = () => {};
 
-  return loading ? (
-    <InlineStack blockAlignment='center' inlineAlignment='center'>
+  const blockMarkup = loading ? (
+    <InlineStack blockAlignment="center" inlineAlignment="center">
       <ProgressIndicator size="large-100" />
     </InlineStack>
   ) : (
-    <AdminBlock
-      // Translate the block title with the i18n API, which uses the strings in the locale files
-      title={i18n.translate("name")}
-    >
+    <>
+      <Text>Issues</Text>
       <Form id={`issues-form`} onSubmit={onSubmit} onReset={onReset}>
         {issues.length ? (
           <>
@@ -125,7 +128,9 @@ function App() {
                       >
                         <Box inlineSize="53%">
                           <Box inlineSize="100%">
-                            <Text fontWeight="bold" textOverflow="ellipsis">{title}</Text>
+                            <Text fontWeight="bold" textOverflow="ellipsis">
+                              {title}
+                            </Text>
                           </Box>
 
                           <Box inlineSize="100%">
@@ -151,22 +156,7 @@ function App() {
                           />
                         </Box>
                         <Box inlineSize="25%">
-                          <InlineStack
-                            inlineSize="100%"
-                            blockAlignment="center"
-                            inlineAlignment="end"
-                            gap="base"
-                          >
-                            <Button
-                              variant="tertiary"
-                              onPress={() =>
-                                navigation?.navigate(
-                                  `extension:issue-tracker-action?issueId=${id}`
-                                )
-                              }
-                            >
-                              <Icon name="EditMinor" />
-                            </Button>
+                          <InlineStack inlineSize="100%" inlineAlignment="end">
                             <Button
                               onPress={() => handleDelete(id)}
                               variant="tertiary"
@@ -181,14 +171,6 @@ function App() {
                 );
               }
             )}
-            <Divider />
-            <Box paddingBlockStart="base">
-              <Button
-                onPress={() => navigation?.navigate(`extension:issue-tracker-action`)}
-              >
-                Add issue
-              </Button>
-            </Box>
             <InlineStack
               paddingBlockStart="large"
               blockAlignment="center"
@@ -219,15 +201,20 @@ function App() {
           <>
             <Box paddingBlockEnd="large">
               <Text fontWeight="bold">No issues for this product</Text>
-            </Box>
-            <Button
-              onPress={() => navigation?.navigate(`extension:issue-tracker-action`)}
-            >
-              Add your first issue
-            </Button>
+          </Box>
           </>
         )}
       </Form>
+    </>
+  );
+  // Only render the block body if there is more than one variant, otherwise, return null to collapse the block
+  return (
+    <AdminBlock
+      // Translate the block title with the i18n API, which uses the strings in the locale files
+      title={i18n.translate("name")}
+      collapsedSummary={!shouldRender ? "Not enough product variants." : null}
+    >
+      {shouldRender ? blockMarkup : null}
     </AdminBlock>
   );
 }
